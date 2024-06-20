@@ -8,10 +8,12 @@ const Candidate = require('../models/candidate');
 const checkAdminRole = async (userID) =>{
     try{
         const user = await User.findById(userID);
+        console.log(user)
         if(user.role === 'admin')
         {
             return true;
         }
+        //return false;
     }catch(err){
         return false;
     }
@@ -21,8 +23,9 @@ const checkAdminRole = async (userID) =>{
 //POST route to add candidate
 router.post('/',jwtAuthMiddleware, async(req,res)=>{
     try{
-        if(!checkAdminRole(req.user.id))
-            return res.status(403).json({message:'user do not have  admin role'});
+        if(!(await checkAdminRole(req.user.userData.id))){
+            return res.status(403).json({message:'user does not have  admin role'});
+        }
         
 
         const data=req.body //Assuming the request body contains the person data 
@@ -45,7 +48,7 @@ router.post('/',jwtAuthMiddleware, async(req,res)=>{
 
 router.put('/:candidateID',jwtAuthMiddleware,async(req, res)=>{
     try{
-        if(!checkAdminRole(req.user.id))
+        if(!(await checkAdminRole(req.user.userData.id)))
             return res.status(403).json({message:'user do not have  admin role'});
 
 
@@ -72,7 +75,7 @@ router.put('/:candidateID',jwtAuthMiddleware,async(req, res)=>{
 
 router.delete('/:candidateID',jwtAuthMiddleware,async(req, res)=>{
     try{
-        if(!checkAdminRole(req.user.id))
+        if(!(await checkAdminRole(req.user.userData.id)))
             return res.status(403).json({message:'user do not have  admin role'});
 
         const candidateID = req.params.candidateID; //Extract the id from Url parameter
@@ -98,10 +101,8 @@ router.post('/vote/:candidateID', jwtAuthMiddleware,async (req, res)=>{
     //no admin can vote
     //user can only votes
 
-    candidateID = req.params.candidateID;
-    userId = req.user.id;
-   console.log(userId);
-   console.log(candidateID)
+   const candidateID = req.params.candidateID;
+   const userId = req.user.userData.id; 
     try{
             //find the candidate document with specified candidateID
             const candidate=await Candidate.findById(candidateID);
@@ -118,11 +119,11 @@ router.post('/vote/:candidateID', jwtAuthMiddleware,async (req, res)=>{
 
             
             if(user.role == 'admin'){
-                res.status(403).json({message:'admin is not allowed'});
+                return res.status(403).json({message:'admin is not allowed'});
             }
 
             if(user.isVoted){
-                res.status(400).json({messge:'user have already voted'});
+                return res.status(400).json({messge:'user have already voted'});
             }
 
             //update the candiadte document to record the vote
@@ -166,10 +167,10 @@ router.get('/vote/count', async(req, res)=>{
 })
 
 
-router.get('/candidate', async(req,res )=>{
+router.get('/allcandidate', async(req,res )=>{
     try{
         //find all candidates and select only the name and party field,excluding _id
-        const candidate = await Candidate.find({}, 'name party-_id');
+        const candidate = await Candidate.find({}, 'name party -_id');
 
         //return the list of candidate
         res.status(200).json(candidate);
